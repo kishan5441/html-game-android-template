@@ -3,13 +3,13 @@ import fs from 'node:fs';
 const manifestPath = 'android/app/src/main/AndroidManifest.xml';
 let manifest = fs.readFileSync(manifestPath, 'utf8');
 
-// Orientation + hardware acceleration
-manifest = manifest.replace(
-  /android:name="\.MainActivity"/,
-  'android:name=".MainActivity"\n            android:screenOrientation="sensorLandscape"\n            android:hardwareAccelerated="true"'
-);
+if (!manifest.includes('android:screenOrientation')) {
+  manifest = manifest.replace(
+    /android:name="\.MainActivity"/,
+    'android:name=".MainActivity"\n            android:screenOrientation="sensorLandscape"\n            android:hardwareAccelerated="true"'
+  );
+}
 
-// Permissions
 if (!manifest.includes('android.permission.INTERNET')) {
   manifest = manifest.replace(
     '</manifest>',
@@ -18,4 +18,4 @@ if (!manifest.includes('android.permission.INTERNET')) {
 }
 
 fs.writeFileSync(manifestPath, manifest);
-console.log('Patched AndroidManifest.xml');
+console.log('✅ Patched AndroidManifest.xml');
