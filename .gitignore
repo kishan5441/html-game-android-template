@@ -1,0 +1,28 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Capacitor generated
+android/
+ios/
+dist/
+.capacitor/
+
+# Keystore — NEVER commit
+*.jks
+*.keystore
+keystore.b64
+release.keystore
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.aab
+*.apk
+*.log
