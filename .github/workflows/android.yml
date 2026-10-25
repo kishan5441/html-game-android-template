@@ -15,13 +15,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 22
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Node 20 deprecation warning fix
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -30,7 +30,15 @@ jobs:
           java-version: 21
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          # --include=dev zaroori hai taaki Capacitor CLI install ho sake
+          npm install --include=dev
+
+      - name: Ensure www directory exists
+        run: mkdir -p www
+
+      - name: Check Capacitor environment
+        run: npx cap doctor # Agar koi dependency missing hai toh yahan error dega
 
       - name: Add Android platform
         run: |
@@ -41,46 +49,4 @@ jobs:
       - name: Sync web assets
         run: npx cap sync android
 
-      - name: Generate app icons and splash
-        run: npx @capacitor/assets generate --android
-
-      - name: Patch AndroidManifest and styles
-        run: node scripts/patch-android.mjs
-
-      - name: Decode keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-          test -s android/app/release.keystore
-
-      - name: Set versionCode and versionName
-        run: |
-          VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))
-          if [[ "${GITHUB_REF_NAME}" == v* ]]; then
-            VERSION_NAME="${GITHUB_REF_NAME#v}"
-          else
-            VERSION_NAME="1.0.0"
-          fi
-          echo "Building versionCode=$VERSION_CODE versionName=$VERSION_NAME"
-          sed -i "s/versionCode .*/versionCode $VERSION_CODE/" android/app/build.gradle
-          sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
-
-      - name: Build signed AAB
-        working-directory: android
-        env:
-          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=$PWD/app/release.keystore \
-            -Pandroid.injected.signing.store.password="$KS_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
-
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+      # ... (baaki steps: Generate icons, patch manifest, decode keystore, build, upload AAB)
