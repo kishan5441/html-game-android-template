@@ -1,0 +1,14 @@
+{
+  "appId": "com.clicktheory_games.hitmancyber",
+  "appName": "Hitman Cyber Shooter",
+  "webDir": "www",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#050811",
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "showSpinner": false
+    }
+  }
+}
