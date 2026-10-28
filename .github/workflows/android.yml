@@ -56,6 +56,16 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > android/app/release.keystore
+          echo "✅ Keystore File Size:"
+          ls -lh android/app/release.keystore
+
+      # 👇 Naya step: Verify that keystore can be read with provided password and alias
+      - name: Verify Keystore Alias and Password
+        env:
+          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          keytool -list -v -keystore android/app/release.keystore -storepass "$KS_PASSWORD" -alias "$KEY_ALIAS" || { echo "❌ Keystore verification failed! Alias or password is incorrect."; exit 1; }
 
       - name: Create key.properties
         run: |
