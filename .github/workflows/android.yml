@@ -47,7 +47,7 @@ jobs:
       - name: Patch AndroidManifest
         run: node scripts/patch-android.mjs
 
-      - name: Decode Keystore (With Strict Check)
+      - name: Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
@@ -55,36 +55,42 @@ jobs:
             echo "❌ Error: ANDROID_KEYSTORE_BASE64 is empty!"
             exit 1
           fi
-          
-          # File decode karo
-          echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.keystore
-          
-          # Check karo ki file bani ya nahi aur size kya hai
-          FILE_SIZE=$(stat -c%s android/app/release.keystore)
-          echo "✅ Decoded Keystore Size: $FILE_SIZE bytes"
-          
-          # Agar file 1000 bytes se chhoti hai, toh matlab text aadha kat gaya hai
-          if [ "$FILE_SIZE" -lt 1000 ]; then
-            echo "❌ ERROR: Keystore file is too small ($FILE_SIZE bytes)."
-            echo "Aapka Base64 text copy-paste karte waqt cut off ho gaya hai. Kripya Termux se poora Base64 dobara copy karein."
-            exit 1
-          fi
+          # tr -d lagana zaroori hai taaki extra enters/spaces na aayein
+          echo "$KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > android/app/release.keystore
+          echo "✅ Decoded Keystore Size: $(stat -c%s android/app/release.keystore) bytes"
 
-      - name: Verify Keystore Alias and Password
+      - name: Debug Verify Keystore
         env:
           KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          keytool -list -v -keystore android/app/release.keystore -storepass "$KS_PASSWORD" -alias "$KEY_ALIAS" || { echo "❌ Keystore verification failed! Alias or password is incorrect."; exit 1; }
+          echo "Password Length (characters): ${#KS_PASSWORD}"
+          echo "Alias Length (characters): ${#KEY_ALIAS}"
+          echo "Alias Provided: '$KEY_ALIAS'"
+          
+          echo "--- Testing Store Password Only ---"
+          # Ye command sirf password check karegi (alias ko ignore karegi)
+          if ! keytool -list -keystore android/app/release.keystore -storepass "$KS_PASSWORD"; then
+            echo "❌ Password is WRONG. Please check ANDROID_KEYSTORE_PASSWORD secret (Check for hidden spaces)."
+            exit 1
+          fi
+          
+          echo "--- Testing Store Password + Alias ---"
+          # Ye command alias check karegi
+          if ! keytool -list -keystore android/app/release.keystore -storepass "$KS_PASSWORD" -alias "$KEY_ALIAS"; then
+            echo "❌ Alias is WRONG. Please check ANDROID_KEY_ALIAS secret (e.g., release, upload)."
+            exit 1
+          fi
+          
+          echo "✅ Keystore perfectly verified!"
 
       - name: Create key.properties
         run: |
-          cat > android/key.properties <<EOF
-          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-          storeFile=release.keystore
-          EOF
+          # Key properties file create karte waqt koi extra space na aaye, isliye quotes use kiye hain
+          echo "storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" > android/key.properties
+          echo "keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> android/key.properties
+          echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/key.properties
+          echo "storeFile=release.keystore" >> android/key.properties
 
       - name: Patch build.gradle
         run: node scripts/patch-gradle.mjs
