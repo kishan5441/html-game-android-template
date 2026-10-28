@@ -33,11 +33,11 @@ jobs:
       - name: Install dependencies
         run: npm install --include=dev
 
-      - name: Add Android platform
+      - name: FORCE Clean and Add Android platform
         run: |
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
+          # Purana android folder delete karo taaki cache conflict na ho
+          rm -rf android
+          npx cap add android
 
       - name: Sync web assets
         run: npx cap sync android
@@ -56,10 +56,22 @@ jobs:
             echo "❌ Error: ANDROID_KEYSTORE_BASE64 is empty!"
             exit 1
           fi
-          # Saari newlines aur spaces hata kar decode karega, taaki empty file na bane
           echo "$KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > android/app/release.keystore
           echo "✅ Keystore File Size:"
           ls -lh android/app/release.keystore
+
+      - name: Create key.properties
+        run: |
+          # Official Android method
+          cat > android/key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=release.keystore
+          EOF
+
+      - name: Patch build.gradle
+        run: node scripts/patch-gradle.mjs
 
       - name: Set versionCode and versionName
         run: |
@@ -72,35 +84,10 @@ jobs:
           sed -i "s/versionCode .*/versionCode $VERSION_CODE/" android/app/build.gradle
           sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
 
-      - name: Inject Signing Config
-        run: |
-          # Directly Gradle file me signing config daal rahe hain taaki koi path error na aaye
-          cat << 'EOF' >> android/app/build.gradle
-          
-          android {
-              signingConfigs {
-                  release {
-                      storeFile file("release.keystore")
-                      storePassword System.getenv("KS_PASSWORD")
-                      keyAlias System.getenv("KEY_ALIAS")
-                      keyPassword System.getenv("KS_PASSWORD")
-                  }
-              }
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                  }
-              }
-          }
-          EOF
-
       - name: Build signed AAB
         working-directory: android
-        env:
-          # Yahan humne tumhara ek hi password dono jagah use kiya hai
-          KS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          # Sirf simple gradle command, koi external override nahi
           ./gradlew bundleRelease
 
       - name: Upload AAB
