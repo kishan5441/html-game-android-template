@@ -35,7 +35,6 @@ jobs:
 
       - name: FORCE Clean and Add Android platform
         run: |
-          # Purana android folder delete karo taaki cache conflict na ho
           rm -rf android
           npx cap add android
 
@@ -57,12 +56,9 @@ jobs:
             exit 1
           fi
           echo "$KEYSTORE_BASE64" | tr -d '\n\r ' | base64 -d > android/app/release.keystore
-          echo "✅ Keystore File Size:"
-          ls -lh android/app/release.keystore
 
       - name: Create key.properties
         run: |
-          # Official Android method
           cat > android/key.properties <<EOF
           storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -87,7 +83,6 @@ jobs:
       - name: Build signed AAB
         working-directory: android
         run: |
-          # Sirf simple gradle command, koi external override nahi
           ./gradlew bundleRelease
 
       - name: Upload AAB
