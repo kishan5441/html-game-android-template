@@ -16,24 +16,23 @@ android {`;
   gradle = gradle.replace('android {', props);
 }
 
-// 2. Signing Config block
+// 2. Signing Config block (Safe null handling ke saath)
 if (!gradle.includes('signingConfigs {')) {
   const signing = `
     signingConfigs {
         release {
-            keyAlias keystoreProperties['keyAlias']
-            keyPassword keystoreProperties['keyPassword']
-            storeFile file(keystoreProperties['storeFile'])
-            storePassword keystoreProperties['storePassword']
+            keyAlias keystoreProperties['keyAlias'] ?: ""
+            keyPassword keystoreProperties['keyPassword'] ?: ""
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword'] ?: ""
         }
     }
     buildTypes {`;
   gradle = gradle.replace('buildTypes {', signing);
 }
 
-// 3. Release build type ke andar signingConfig lagana (YAHAN LAGI THI GALTI)
+// 3. Release build type ke andar signingConfig lagana
 if (!gradle.includes('signingConfig signingConfigs.release')) {
-  // Humne exact match use kiya hai taaki koi confusion na ho
   gradle = gradle.replace(
     /buildTypes\s*\{\s*release\s*\{/,
     `buildTypes {
