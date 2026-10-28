@@ -3,8 +3,9 @@ import fs from 'node:fs';
 const gradlePath = 'android/app/build.gradle';
 let gradle = fs.readFileSync(gradlePath, 'utf8');
 
-// 1. Key properties load karne ka code
-const propsLoading = `
+// 1. Properties load karne ka code top par
+if (!gradle.includes('keystoreProperties.load')) {
+  const props = `
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file('key.properties')
 if (keystorePropertiesFile.exists()) {
@@ -12,13 +13,12 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {`;
-
-if (!gradle.includes('keystoreProperties')) {
-  gradle = gradle.replace('android {', propsLoading);
+  gradle = gradle.replace('android {', props);
 }
 
-// 2. Signing config add karna
-const signingConfigs = `
+// 2. Signing Config block
+if (!gradle.includes('signingConfigs {')) {
+  const signing = `
     signingConfigs {
         release {
             keyAlias keystoreProperties['keyAlias']
@@ -27,16 +27,20 @@ const signingConfigs = `
             storePassword keystoreProperties['storePassword']
         }
     }
-`;
-
-if (!gradle.includes('signingConfigs {')) {
-  gradle = gradle.replace(/buildTypes\s*\{/, signingConfigs + '\n    buildTypes {');
+    buildTypes {`;
+  gradle = gradle.replace('buildTypes {', signing);
 }
 
-// 3. Release build ko signing config se jodna
+// 3. Release build type ke andar signingConfig lagana (YAHAN LAGI THI GALTI)
 if (!gradle.includes('signingConfig signingConfigs.release')) {
-  gradle = gradle.replace(/release\s*\{/, 'release {\n            signingConfig signingConfigs.release');
+  // Humne exact match use kiya hai taaki koi confusion na ho
+  gradle = gradle.replace(
+    /buildTypes\s*\{\s*release\s*\{/,
+    `buildTypes {
+        release {
+            signingConfig signingConfigs.release`
+  );
 }
 
 fs.writeFileSync(gradlePath, gradle);
-console.log('✅ Patched build.gradle successfully');
+console.log('✅ Patched build.gradle perfectly');
